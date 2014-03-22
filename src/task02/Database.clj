@@ -1,4 +1,7 @@
 (ns task02.Database
+  (:gen-class
+   :methods [^{:static true} [InitDatabase [] void]
+             ^{:static true} [Select [String] String]])
   (:use [task02 db query])
   ;; Объявить класс task02.Database с двумя статическими функциями доступными из Java:
   ;;  - void InitDatabase() - должна выполнять начальную загрузку данных используя функцию
@@ -9,4 +12,12 @@
   ;; Hint: load-initial-data, pr-str, perform-query
   ; :implement-me
   )
+
+(defn -InitDatabase []
+  (load-initial-data))
+
+(defn -Select ^String [^String query]
+  (pr-str (perform-query query)))
+
+
 

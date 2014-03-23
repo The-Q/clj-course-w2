@@ -10,8 +10,8 @@
 ;; Hint: *in*, *out*, io/writer, io/reader, socket.getOutputStream(), socket.getInputStream(), socket.close(), binding
 ;;       deliver, prn
 (defn handle-request [^Socket sock]
-  (binding [*in*  (.getInputStream sock)
-            *out* (.getOutputStream sock)] ;; переопределить *in* & *out* чтобы они указывали на входной и выходной потоки сокета
+  (binding [*in*  (io/reader (.getInputStream sock))
+            *out* (io/writer (.getOutputStream sock))] ;; переопределить *in* & *out* чтобы они указывали на входной и выходной потоки сокета
     (try
       (let [s (read-line)] ;; считать данные из переопределенного *in*
         (if (= (str/lower-case s) "quit")
@@ -47,6 +47,6 @@
                         (.setSoTimeout 3000)
                         (.bind sock-addr))]
     (loop [_ (run-loop server-socket)]
-      (when-not (realized? should-be-finished) ;; следующий запрос если работа не завершается...
+      (when-not (realized? should-be-finished);; следующий запрос если работа не завершается...
         (recur (run-loop server-socket))))
     (.close server-socket)))

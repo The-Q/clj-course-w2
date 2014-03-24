@@ -37,7 +37,11 @@
 (defn parse-select [^String sel-string]
   :implement-me)
 
-(defn make-where-function [& args] :implement-me)
+(defn make-where-function [& args]
+  (let [column  (keyword (nth args 0))
+        comp-op @(resolve (symbol (nth args 1)))
+        value   (parse-int (nth args 2))]
+    (fn [x] (comp-op #(column x) value))))
 
 ;; Выполняет запрос переданный в строке.  Бросает исключение если не удалось распарсить запрос
 

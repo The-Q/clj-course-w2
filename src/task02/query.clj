@@ -1,5 +1,6 @@
 (ns task02.query
-  (:use [task02 helpers db]))
+  (:use [task02 helpers db]
+        [clojure.core.match :only (match)]))
 
 ;; Функция выполняющая парсинг запроса переданного пользователем
 ;;
@@ -34,8 +35,15 @@
 ;; ("student" :where #<function> :order-by :id :limit 2 :joins [[:id "subject" :sid]])
 ;; > (parse-select "werfwefw")
 ;; nil
+
+
 (defn parse-select [^String sel-string]
-  :implement-me)
+  (let [possible-where-fns #{"=" "!=" "<" ">" "<=" ">="}
+        parse-select-hpr (fn [coll acc]
+                           (match [coll]
+                                  ["select" tbl-name & r] (recur (vec r) (conj acc tbl-name))
+                                  ["order by" column ]))]))
+
 
 (defn- resolve-func [fn-name]
   (if (= fn-name "!=")

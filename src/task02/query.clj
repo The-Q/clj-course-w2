@@ -37,11 +37,18 @@
 (defn parse-select [^String sel-string]
   :implement-me)
 
+(defn- resolve-func [fn-name]
+  (if (= fn-name "!=")
+    @(resolve 'not=)
+    @(resolve (symbol fn-name))))
+
 (defn make-where-function [& args]
   (let [column  (keyword (nth args 0))
-        comp-op @(resolve (symbol (nth args 1)))
-        value   (parse-int (nth args 2))]
-    (fn [x] (comp-op #(column x) value))))
+        comp-op (resolve-func (nth args 1))
+        value   (cond
+                   (re-matches #"\d*" (nth args 2)) (parse-int (nth args 2))
+                   (re-matches #"('(\w*)')" (nth args 2)) (last (re-matches #"('(\w*)')" (nth args 2))))]
+    #(comp-op (column %) value)))
 
 ;; Выполняет запрос переданный в строке.  Бросает исключение если не удалось распарсить запрос
 

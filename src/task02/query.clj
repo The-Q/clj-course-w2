@@ -2,6 +2,19 @@
   (:use [task02 helpers db]
         [clojure.core.match :only (match)]))
 
+
+(defn- resolve-func [fn-name]
+  (if (= fn-name "!=")
+    @(resolve 'not=)
+    @(resolve (symbol fn-name))))
+
+(defn make-where-function [& args]
+  (let [column  (keyword (nth args 0))
+        comp-op (resolve-func (nth args 1))
+        value   (cond
+                   (re-matches #"\d+" (nth args 2)) (parse-int (nth args 2))
+                   (re-matches #"('(\w+)')" (nth args 2)) (last (re-matches #"('(\w*)')" (nth args 2))))]
+    #(comp-op (column %) value)))
 ;; Функция выполняющая парсинг запроса переданного пользователем
 ;;
 ;; Синтаксис запроса:
@@ -36,27 +49,29 @@
 ;; > (parse-select "werfwefw")
 ;; nil
 
-
 (defn parse-select [^String sel-string]
   (let [possible-where-fns #{"=" "!=" "<" ">" "<=" ">="}
-        parse-select-hpr (fn [coll acc]
-                           (match [coll]
-                                  ["select" tbl-name & r] (recur (vec r) (conj acc tbl-name))
-                                  ["order by" column ]))]))
-
-
-(defn- resolve-func [fn-name]
-  (if (= fn-name "!=")
-    @(resolve 'not=)
-    @(resolve (symbol fn-name))))
-
-(defn make-where-function [& args]
-  (let [column  (keyword (nth args 0))
-        comp-op (resolve-func (nth args 1))
-        value   (cond
-                   (re-matches #"\d*" (nth args 2)) (parse-int (nth args 2))
-                   (re-matches #"('(\w*)')" (nth args 2)) (last (re-matches #"('(\w*)')" (nth args 2))))]
-    #(comp-op (column %) value)))
+        parse-select-hpr (fn [coll acc tbl]
+                           (match coll
+                                  [] (apply concat [tbl] acc)
+                                  ["select" tbl-name & r] (recur (vec r) acc tbl-name)
+                                  ["limit" lim & r] (recur (vec r) (assoc acc :limit (parse-int lim)) tbl)
+                                  ["order" "by" column & r] (recur (vec r) (assoc acc :order-by (keyword column)) tbl)
+                                  ["where" column (comp-op :guard #(possible-where-fns %)) value & r] (recur
+                                                                                                       (vec r)
+                                                                                                       (assoc acc
+                                                                                                             :where
+                                                                                                             (make-where-function column comp-op value))
+                                                                                                       tbl)
+                                  ["join" table "on" left "=" right & r] (recur (vec r) (update-in acc
+                                                                                                   [:joins]
+                                                                                                   (fnil #(conj % [(keyword left)
+                                                                                                                   table
+                                                                                                                   (keyword right)])
+                                                                                                         [])) tbl)
+                                  :else nil))
+        query-vec (vec (.split sel-string " "))]
+    (parse-select-hpr query-vec {} "")))
 
 ;; Выполняет запрос переданный в строке.  Бросает исключение если не удалось распарсить запрос
 

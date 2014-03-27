@@ -21,9 +21,9 @@
   (update-in rec [field] parse-int))
 
 ;; Место для хранения данных - используйте atom/ref/agent/...
-(def student :implement-me)
-(def subject :implement-me)
-(def student-subject :implement-me)
+(def student (atom []))
+(def subject (atom []))
+(def student-subject (atom []))
 
 ;; функция должна вернуть мутабельный объект используя его имя
 (defn get-table [^String tb-name]
@@ -38,12 +38,12 @@
 ;;; и сохраняет их в изменяемых переменных student, subject, student-subject
 (defn load-initial-data []
   ;;; :implement-me может быть необходимо добавить что-то еще
-  (:implement-me student (->> (data-table (csv/read-csv (slurp "student.csv")))
+  (swap! student conj (->> (data-table (csv/read-csv (slurp "student.csv")))
                      (map #(str-field-to-int :id %))
                      (map #(str-field-to-int :year %))))
-  (:implement-me subject (->> (data-table (csv/read-csv (slurp "subject.csv")))
+  (swap! subject conj (->> (data-table (csv/read-csv (slurp "subject.csv")))
                      (map #(str-field-to-int :id %))))
-  (:implement-me student-subject (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
+  (swap! student-subject conj (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
                              (map #(str-field-to-int :subject_id %))
                              (map #(str-field-to-int :student_id %)))))
 

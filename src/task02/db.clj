@@ -38,12 +38,12 @@
 ;;; и сохраняет их в изменяемых переменных student, subject, student-subject
 (defn load-initial-data []
   ;;; :implement-me может быть необходимо добавить что-то еще
-  (swap! student conj (->> (data-table (csv/read-csv (slurp "student.csv")))
+  (reset! student (->> (data-table (csv/read-csv (slurp "student.csv")))
                      (map #(str-field-to-int :id %))
                      (map #(str-field-to-int :year %))))
-  (swap! subject conj (->> (data-table (csv/read-csv (slurp "subject.csv")))
+  (reset! subject (->> (data-table (csv/read-csv (slurp "subject.csv")))
                      (map #(str-field-to-int :id %))))
-  (swap! student-subject conj (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
+  (reset! student-subject (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
                              (map #(str-field-to-int :subject_id %))
                              (map #(str-field-to-int :student_id %)))))
 
@@ -98,9 +98,14 @@
 ;; Примеры использования
 ;;   (delete student) -> []
 ;;   (delete student :where #(= (:id %) 1)) -> все кроме первой записи
+(defn- remove* [data condition-func]
+  (if condition-func
+    (remove condition-func data)
+    []))
+
 (defn delete [data & {:keys [where]}]
-  :implement-me
-  )
+  (reset! data
+      (remove* @data where)))
 
 ;; Данная функция должна обновить данные в строках соответствующих указанному предикату
 ;; (или во всей таблице).
@@ -111,9 +116,15 @@
 ;; Примеры использования:
 ;;   (update student {:id 5})
 ;;   (update student {:id 6} :where #(= (:year %) 1996))
+(defn- update-record [record func updates]
+  (if func
+    (if (func record)
+      (merge record updates)
+      record)
+    (merge record updates)))
+
 (defn update [data upd-map & {:keys [where]}]
-  :implement-me
-  )
+  (reset! data (map #(update-record % where upd-map) @data)))
 
 
 ;; Вставляет новую строку в указанную таблицу
@@ -124,6 +135,5 @@
 ;; Примеры использования:
 ;;   (insert student {:id 10 :year 2000 :surname "test"})
 (defn insert [data new-entry]
-  :implement-me
-  )
+  (swap! data conj new-entry))
 

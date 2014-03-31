@@ -104,8 +104,7 @@
     []))
 
 (defn delete [data & {:keys [where]}]
-  (reset! data
-      (remove* @data where)))
+  (swap! data remove* where))
 
 ;; Данная функция должна обновить данные в строках соответствующих указанному предикату
 ;; (или во всей таблице).
@@ -116,15 +115,17 @@
 ;; Примеры использования:
 ;;   (update student {:id 5})
 ;;   (update student {:id 6} :where #(= (:year %) 1996))
-(defn- update-record [record func updates]
-  (if func
-    (if (func record)
-      (merge record updates)
-      record)
-    (merge record updates)))
+(defn- update* [data func updates]
+  (let [test-fn    (if func
+                     func
+                     (fn [& _] true))
+        update-val (fn [rec] (if (test-fn rec)
+                               (merge rec updates)
+                               rec))]
+    (map update-val data)))
 
 (defn update [data upd-map & {:keys [where]}]
-  (reset! data (map #(update-record % where upd-map) @data)))
+  (swap! data update* where upd-map))
 
 
 ;; Вставляет новую строку в указанную таблицу

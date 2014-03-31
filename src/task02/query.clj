@@ -9,11 +9,12 @@
     @(resolve (symbol fn-name))))
 
 (defn make-where-function [& args]
-  (let [column  (keyword (nth args 0))
-        comp-op (resolve-func (nth args 1))
-        value   (cond
-                   (re-matches #"\d+" (nth args 2)) (parse-int (nth args 2))
-                   (re-matches #"('(\w+)')" (nth args 2)) (last (re-matches #"('(\w*)')" (nth args 2))))]
+  (let [column    (keyword (nth args 0))
+        comp-op   (resolve-func (nth args 1))
+        where-val (nth args 2)
+        value     (cond
+                    (re-matches #"\d+" where-val) (parse-int where-val)
+                    (re-matches #"('(\w+)')" where-val) (last (re-matches #"('(\w*)')" where-val)))]
     #(comp-op (column %) value)))
 ;; Функция выполняющая парсинг запроса переданного пользователем
 ;;
@@ -48,29 +49,30 @@
 ;; ("student" :where #<function> :order-by :id :limit 2 :joins [[:id "subject" :sid]])
 ;; > (parse-select "werfwefw")
 ;; nil
+(defn- parse-select-hpr [coll acc tbl]
+  (let [possible-where-fns #{"=" "!=" "<" ">" "<=" ">="}]
+    (match coll
+           [] (apply concat [tbl] acc)
+           ["select" tbl-name & r] (recur r acc tbl-name)
+           ["limit" lim & r] (recur r (assoc acc :limit (parse-int lim)) tbl)
+           ["order" "by" column & r] (recur r (assoc acc :order-by (keyword column)) tbl)
+           ["where" column (comp-op :guard possible-where-fns) value & r] (recur
+                                                                           r
+                                                                           (assoc acc
+                                                                             :where
+                                                                             (make-where-function column comp-op value))
+                                                                           tbl)
+           ["join" table "on" left "=" right & r] (recur r (update-in acc
+                                                                      [:joins]
+                                                                      (fnil #(conj % [(keyword left)
+                                                                                      table
+                                                                                      (keyword right)])
+                                                                            [])) tbl)
+           :else nil)))
+
 
 (defn parse-select [^String sel-string]
-  (let [possible-where-fns #{"=" "!=" "<" ">" "<=" ">="}
-        parse-select-hpr (fn [coll acc tbl]
-                           (match coll
-                                  [] (apply concat [tbl] acc)
-                                  ["select" tbl-name & r] (recur (vec r) acc tbl-name)
-                                  ["limit" lim & r] (recur (vec r) (assoc acc :limit (parse-int lim)) tbl)
-                                  ["order" "by" column & r] (recur (vec r) (assoc acc :order-by (keyword column)) tbl)
-                                  ["where" column (comp-op :guard #(possible-where-fns %)) value & r] (recur
-                                                                                                       (vec r)
-                                                                                                       (assoc acc
-                                                                                                             :where
-                                                                                                             (make-where-function column comp-op value))
-                                                                                                       tbl)
-                                  ["join" table "on" left "=" right & r] (recur (vec r) (update-in acc
-                                                                                                   [:joins]
-                                                                                                   (fnil #(conj % [(keyword left)
-                                                                                                                   table
-                                                                                                                   (keyword right)])
-                                                                                                         [])) tbl)
-                                  :else nil))
-        query-vec (vec (.split sel-string " "))]
+  (let [query-vec (vec (.split sel-string " "))]
     (parse-select-hpr query-vec {} "")))
 
 ;; Выполняет запрос переданный в строке.  Бросает исключение если не удалось распарсить запрос
